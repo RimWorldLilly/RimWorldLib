@@ -1,0 +1,112 @@
+﻿using System;
+using System.Collections.Generic;
+
+namespace Verse
+{
+	// Token: 0x02000086 RID: 134
+	public static class TitleCaseHelper
+	{
+		// Token: 0x06000611 RID: 1553 RVA: 0x00023D19 File Offset: 0x00021F19
+		public static bool IsUppercaseTitleWord(string word)
+		{
+			return word.Length > 1 && !TitleCaseHelper.NonUppercaseWords.Contains(word);
+		}
+
+		// Token: 0x04000205 RID: 517
+		private static HashSet<string> NonUppercaseWords = new HashSet<string>
+		{
+			"a",
+			"aboard",
+			"about",
+			"above",
+			"absent",
+			"across",
+			"after",
+			"against",
+			"along",
+			"alongside",
+			"amid",
+			"amidst",
+			"among",
+			"amongst",
+			"an",
+			"and",
+			"around",
+			"as",
+			"as",
+			"aslant",
+			"astride",
+			"at",
+			"athwart",
+			"atop",
+			"barring",
+			"before",
+			"behind",
+			"below",
+			"beneath",
+			"beside",
+			"besides",
+			"between",
+			"beyond",
+			"but",
+			"by",
+			"despite",
+			"down",
+			"during",
+			"except",
+			"failing",
+			"following",
+			"for",
+			"from",
+			"in",
+			"inside",
+			"into",
+			"like",
+			"mid",
+			"minus",
+			"near",
+			"next",
+			"nor",
+			"of",
+			"off",
+			"on",
+			"onto",
+			"opposite",
+			"or",
+			"out",
+			"outside",
+			"over",
+			"past",
+			"per",
+			"plus",
+			"regarding",
+			"save",
+			"since",
+			"so",
+			"than",
+			"the",
+			"through",
+			"throughout",
+			"till",
+			"times",
+			"to",
+			"toward",
+			"towards",
+			"under",
+			"underneath",
+			"unlike",
+			"until",
+			"up",
+			"upon",
+			"via",
+			"vs.",
+			"vs",
+			"when",
+			"with",
+			"within",
+			"without",
+			"worth",
+			"yet"
+		};
+	}
+}

@@ -1,0 +1,320 @@
+﻿using System;
+using System.Collections.Generic;
+using UnityEngine;
+using Verse;
+
+namespace RimWorld
+{
+	// Token: 0x0200156C RID: 5484
+	public class Need_Chemical_Any : Need
+	{
+		// Token: 0x170016D4 RID: 5844
+		// (get) Token: 0x06008682 RID: 34434 RVA: 0x0030A275 File Offset: 0x00308475
+		private Trait TraitDrugDesire
+		{
+			get
+			{
+				return this.pawn.story.traits.GetTrait(TraitDefOf.DrugDesire);
+			}
+		}
+
+		// Token: 0x170016D5 RID: 5845
+		// (get) Token: 0x06008683 RID: 34435 RVA: 0x0030A291 File Offset: 0x00308491
+		private SimpleCurve FallCurve
+		{
+			get
+			{
+				if (this.TraitDrugDesire.Degree == 2)
+				{
+					return Need_Chemical_Any.FascinationDegreeFallCurve;
+				}
+				return Need_Chemical_Any.InterestDegreeFallCurve;
+			}
+		}
+
+		// Token: 0x170016D6 RID: 5846
+		// (get) Token: 0x06008684 RID: 34436 RVA: 0x0030A2AC File Offset: 0x003084AC
+		private float FallPerNeedIntervalTick
+		{
+			get
+			{
+				Trait traitDrugDesire = this.TraitDrugDesire;
+				float num = 1f;
+				if (traitDrugDesire.Degree == 2)
+				{
+					num = 1.25f;
+				}
+				num *= this.FallCurve.Evaluate(this.CurLevel);
+				return this.def.fallPerDay * num / 60000f * 150f;
+			}
+		}
+
+		// Token: 0x170016D7 RID: 5847
+		// (get) Token: 0x06008685 RID: 34437 RVA: 0x0030A300 File Offset: 0x00308500
+		private Need_Chemical_Any.LevelThresholds CurrentLevelThresholds
+		{
+			get
+			{
+				if (this.TraitDrugDesire.Degree == 2)
+				{
+					return Need_Chemical_Any.FascinationDegreeLevelThresholdsForMood;
+				}
+				return Need_Chemical_Any.InterestDegreeLevelThresholdsForMood;
+			}
+		}
+
+		// Token: 0x170016D8 RID: 5848
+		// (get) Token: 0x06008686 RID: 34438 RVA: 0x0030A31C File Offset: 0x0030851C
+		public Need_Chemical_Any.MoodBuff MoodBuffForCurrentLevel
+		{
+			get
+			{
+				if (this.Disabled)
+				{
+					return Need_Chemical_Any.MoodBuff.Neutral;
+				}
+				Need_Chemical_Any.LevelThresholds currentLevelThresholds = this.CurrentLevelThresholds;
+				float curLevel = this.CurLevel;
+				if (curLevel <= currentLevelThresholds.extremelyNegative)
+				{
+					return Need_Chemical_Any.MoodBuff.ExtremelyNegative;
+				}
+				if (curLevel <= currentLevelThresholds.veryNegative)
+				{
+					return Need_Chemical_Any.MoodBuff.VeryNegative;
+				}
+				if (curLevel <= currentLevelThresholds.negative)
+				{
+					return Need_Chemical_Any.MoodBuff.Negative;
+				}
+				if (curLevel <= currentLevelThresholds.positive)
+				{
+					return Need_Chemical_Any.MoodBuff.Neutral;
+				}
+				if (curLevel <= currentLevelThresholds.veryPositive)
+				{
+					return Need_Chemical_Any.MoodBuff.Positive;
+				}
+				return Need_Chemical_Any.MoodBuff.VeryPositive;
+			}
+		}
+
+		// Token: 0x170016D9 RID: 5849
+		// (get) Token: 0x06008687 RID: 34439 RVA: 0x0030A379 File Offset: 0x00308579
+		public override int GUIChangeArrow
+		{
+			get
+			{
+				return 0;
+			}
+		}
+
+		// Token: 0x170016DA RID: 5850
+		// (get) Token: 0x06008688 RID: 34440 RVA: 0x0030A37C File Offset: 0x0030857C
+		public override bool ShowOnNeedList
+		{
+			get
+			{
+				return !this.Disabled;
+			}
+		}
+
+		// Token: 0x170016DB RID: 5851
+		// (get) Token: 0x06008689 RID: 34441 RVA: 0x0030A387 File Offset: 0x00308587
+		private bool Disabled
+		{
+			get
+			{
+				return this.TraitDrugDesire == null || this.TraitDrugDesire.Degree < 1;
+			}
+		}
+
+		// Token: 0x0600868A RID: 34442 RVA: 0x0030A3A4 File Offset: 0x003085A4
+		public void Notify_IngestedDrug(Thing drug)
+		{
+			if (this.Disabled)
+			{
+				return;
+			}
+			DrugCategory drugCategory = drug.def.ingestible.drugCategory;
+			if (drugCategory == DrugCategory.Social)
+			{
+				this.CurLevel += 0.2f;
+				return;
+			}
+			if (drugCategory != DrugCategory.Hard)
+			{
+				return;
+			}
+			this.CurLevel += 0.3f;
+		}
+
+		// Token: 0x0600868B RID: 34443 RVA: 0x0030A3F9 File Offset: 0x003085F9
+		public Need_Chemical_Any(Pawn pawn) : base(pawn)
+		{
+		}
+
+		// Token: 0x0600868C RID: 34444 RVA: 0x0030A402 File Offset: 0x00308602
+		public override void SetInitialLevel()
+		{
+			this.CurLevel = 0.5f;
+		}
+
+		// Token: 0x0600868D RID: 34445 RVA: 0x0030A410 File Offset: 0x00308610
+		public override void DrawOnGUI(Rect rect, int maxThresholdMarkers = 2147483647, float customMargin = -1f, bool drawArrows = true, bool doTooltip = true, Rect? rectForTooltip = null, bool drawLabel = true)
+		{
+			Trait traitDrugDesire = this.TraitDrugDesire;
+			if (traitDrugDesire != null && this.lastThresholdUpdateTraitRef != traitDrugDesire)
+			{
+				this.lastThresholdUpdateTraitRef = traitDrugDesire;
+				this.threshPercents = new List<float>();
+				Need_Chemical_Any.LevelThresholds currentLevelThresholds = this.CurrentLevelThresholds;
+				this.threshPercents.Add(currentLevelThresholds.extremelyNegative);
+				this.threshPercents.Add(currentLevelThresholds.veryNegative);
+				this.threshPercents.Add(currentLevelThresholds.negative);
+				this.threshPercents.Add(currentLevelThresholds.positive);
+				this.threshPercents.Add(currentLevelThresholds.veryPositive);
+			}
+			base.DrawOnGUI(rect, maxThresholdMarkers, customMargin, drawArrows, doTooltip, rectForTooltip, drawLabel);
+		}
+
+		// Token: 0x0600868E RID: 34446 RVA: 0x0030A4AF File Offset: 0x003086AF
+		public override void NeedInterval()
+		{
+			if (this.Disabled)
+			{
+				this.SetInitialLevel();
+				return;
+			}
+			if (this.IsFrozen)
+			{
+				return;
+			}
+			this.CurLevel -= this.FallPerNeedIntervalTick;
+		}
+
+		// Token: 0x040052D9 RID: 21209
+		public const int InterestTraitDegree = 1;
+
+		// Token: 0x040052DA RID: 21210
+		public const int FascinationTraitDegree = 2;
+
+		// Token: 0x040052DB RID: 21211
+		private const float FallPerTickFactorForChemicalFascination = 1.25f;
+
+		// Token: 0x040052DC RID: 21212
+		public const float GainForHardDrugIngestion = 0.3f;
+
+		// Token: 0x040052DD RID: 21213
+		public const float GainForSocialDrugIngestion = 0.2f;
+
+		// Token: 0x040052DE RID: 21214
+		private static readonly SimpleCurve InterestDegreeFallCurve = new SimpleCurve
+		{
+			{
+				new CurvePoint(0f, 0.3f),
+				true
+			},
+			{
+				new CurvePoint(Need_Chemical_Any.FascinationDegreeLevelThresholdsForMood.negative, 0.6f),
+				true
+			},
+			{
+				new CurvePoint(Need_Chemical_Any.FascinationDegreeLevelThresholdsForMood.negative + 0.001f, 1f),
+				true
+			},
+			{
+				new CurvePoint(Need_Chemical_Any.FascinationDegreeLevelThresholdsForMood.positive, 1f),
+				true
+			},
+			{
+				new CurvePoint(1f, 1f),
+				true
+			}
+		};
+
+		// Token: 0x040052DF RID: 21215
+		private static readonly SimpleCurve FascinationDegreeFallCurve = new SimpleCurve
+		{
+			{
+				new CurvePoint(0f, 0.4f),
+				true
+			},
+			{
+				new CurvePoint(Need_Chemical_Any.FascinationDegreeLevelThresholdsForMood.negative, 0.7f),
+				true
+			},
+			{
+				new CurvePoint(Need_Chemical_Any.FascinationDegreeLevelThresholdsForMood.negative + 0.001f, 1f),
+				true
+			},
+			{
+				new CurvePoint(Need_Chemical_Any.FascinationDegreeLevelThresholdsForMood.positive, 1f),
+				true
+			},
+			{
+				new CurvePoint(1f, 1.15f),
+				true
+			}
+		};
+
+		// Token: 0x040052E0 RID: 21216
+		private static readonly Need_Chemical_Any.LevelThresholds FascinationDegreeLevelThresholdsForMood = new Need_Chemical_Any.LevelThresholds
+		{
+			extremelyNegative = 0.1f,
+			veryNegative = 0.25f,
+			negative = 0.4f,
+			positive = 0.7f,
+			veryPositive = 0.85f
+		};
+
+		// Token: 0x040052E1 RID: 21217
+		private static readonly Need_Chemical_Any.LevelThresholds InterestDegreeLevelThresholdsForMood = new Need_Chemical_Any.LevelThresholds
+		{
+			extremelyNegative = 0.01f,
+			veryNegative = 0.15f,
+			negative = 0.3f,
+			positive = 0.6f,
+			veryPositive = 0.75f
+		};
+
+		// Token: 0x040052E2 RID: 21218
+		private Trait lastThresholdUpdateTraitRef;
+
+		// Token: 0x02003386 RID: 13190
+		public enum MoodBuff
+		{
+			// Token: 0x0400CEC6 RID: 52934
+			ExtremelyNegative,
+			// Token: 0x0400CEC7 RID: 52935
+			VeryNegative,
+			// Token: 0x0400CEC8 RID: 52936
+			Negative,
+			// Token: 0x0400CEC9 RID: 52937
+			Neutral,
+			// Token: 0x0400CECA RID: 52938
+			Positive,
+			// Token: 0x0400CECB RID: 52939
+			VeryPositive
+		}
+
+		// Token: 0x02003387 RID: 13191
+		public struct LevelThresholds
+		{
+			// Token: 0x0400CECC RID: 52940
+			public float extremelyNegative;
+
+			// Token: 0x0400CECD RID: 52941
+			public float veryNegative;
+
+			// Token: 0x0400CECE RID: 52942
+			public float negative;
+
+			// Token: 0x0400CECF RID: 52943
+			public float positive;
+
+			// Token: 0x0400CED0 RID: 52944
+			public float veryPositive;
+		}
+	}
+}

@@ -1,0 +1,88 @@
+﻿using System;
+using Verse;
+using Verse.AI;
+
+namespace RimWorld
+{
+	// Token: 0x02001D17 RID: 7447
+	public class FloatMenuOptionProvider_CarryDeathrestingToCasket : FloatMenuOptionProvider
+	{
+		// Token: 0x17002315 RID: 8981
+		// (get) Token: 0x0600C0A1 RID: 49313 RVA: 0x00463C1D File Offset: 0x00461E1D
+		protected override bool Drafted
+		{
+			get
+			{
+				return true;
+			}
+		}
+
+		// Token: 0x17002316 RID: 8982
+		// (get) Token: 0x0600C0A2 RID: 49314 RVA: 0x00463C20 File Offset: 0x00461E20
+		protected override bool Undrafted
+		{
+			get
+			{
+				return true;
+			}
+		}
+
+		// Token: 0x17002317 RID: 8983
+		// (get) Token: 0x0600C0A3 RID: 49315 RVA: 0x00463C23 File Offset: 0x00461E23
+		protected override bool Multiselect
+		{
+			get
+			{
+				return false;
+			}
+		}
+
+		// Token: 0x17002318 RID: 8984
+		// (get) Token: 0x0600C0A4 RID: 49316 RVA: 0x00463C26 File Offset: 0x00461E26
+		protected override bool RequiresManipulation
+		{
+			get
+			{
+				return true;
+			}
+		}
+
+		// Token: 0x0600C0A5 RID: 49317 RVA: 0x00463C29 File Offset: 0x00461E29
+		protected override bool AppliesInt(FloatMenuContext context)
+		{
+			return ModsConfig.BiotechActive;
+		}
+
+		// Token: 0x0600C0A6 RID: 49318 RVA: 0x00463C30 File Offset: 0x00461E30
+		protected override FloatMenuOption GetSingleOptionFor(Pawn clickedPawn, FloatMenuContext context)
+		{
+			if (!clickedPawn.Deathresting || clickedPawn.InBed())
+			{
+				return null;
+			}
+			if (!clickedPawn.IsColonist && !clickedPawn.IsPrisonerOfColony)
+			{
+				return null;
+			}
+			if (!context.FirstSelectedPawn.CanReach(clickedPawn, PathEndMode.ClosestTouch, Danger.Deadly, false, false, TraverseMode.ByPawn))
+			{
+				return new FloatMenuOption("CannotCarry".Translate(clickedPawn) + ": " + "NoPath".Translate().CapitalizeFirst(), null, MenuOptionPriority.Default, null, null, 0f, null, null, true, 0);
+			}
+			Thing bestBedOrCasket = GenClosest.ClosestThingReachable(clickedPawn.PositionHeld, context.FirstSelectedPawn.Map, ThingRequest.ForDef(ThingDefOf.DeathrestCasket), PathEndMode.ClosestTouch, TraverseParms.For(context.FirstSelectedPawn, Danger.Deadly, TraverseMode.ByPawn, false, false, false, true), 9999f, (Thing casket) => casket.Faction == Faction.OfPlayer && RestUtility.IsValidBedFor(casket, clickedPawn, context.FirstSelectedPawn, true, false, false, clickedPawn.GuestStatus), null, 0, -1, false, RegionType.Set_Passable, false, false);
+			if (bestBedOrCasket == null)
+			{
+				bestBedOrCasket = RestUtility.FindBedFor(clickedPawn, context.FirstSelectedPawn, false, false, null);
+			}
+			if (bestBedOrCasket == null)
+			{
+				return new FloatMenuOption("CannotCarry".Translate(clickedPawn) + ": " + "NoCasketOrBed".Translate(), null, MenuOptionPriority.Default, null, null, 0f, null, null, true, 0);
+			}
+			return FloatMenuUtility.DecoratePrioritizedTask(new FloatMenuOption("CarryToSpecificThing".Translate(bestBedOrCasket), delegate()
+			{
+				Job job = JobMaker.MakeJob(JobDefOf.DeliverToBed, clickedPawn, bestBedOrCasket);
+				job.count = 1;
+				context.FirstSelectedPawn.jobs.TryTakeOrderedJob(job, new JobTag?(JobTag.Misc), false);
+			}, MenuOptionPriority.RescueOrCapture, null, clickedPawn, 0f, null, null, true, 0), context.FirstSelectedPawn, clickedPawn, "ReservedBy", null);
+		}
+	}
+}

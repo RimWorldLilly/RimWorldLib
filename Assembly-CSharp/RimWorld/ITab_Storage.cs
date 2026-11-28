@@ -1,0 +1,235 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using UnityEngine;
+using Verse;
+
+namespace RimWorld
+{
+	// Token: 0x02001D82 RID: 7554
+	public class ITab_Storage : ITab
+	{
+		// Token: 0x17002447 RID: 9287
+		// (get) Token: 0x0600C3BF RID: 50111 RVA: 0x00479DB0 File Offset: 0x00477FB0
+		protected virtual IStoreSettingsParent SelStoreSettingsParent
+		{
+			get
+			{
+				Thing thing = base.SelObject as Thing;
+				if (thing != null)
+				{
+					IStoreSettingsParent thingOrThingCompStoreSettingsParent = this.GetThingOrThingCompStoreSettingsParent(thing);
+					if (thingOrThingCompStoreSettingsParent != null)
+					{
+						return thingOrThingCompStoreSettingsParent;
+					}
+					return null;
+				}
+				else
+				{
+					if (base.AllSelObjects.Count > 1)
+					{
+						bool flag = true;
+						IStorageGroupMember storageGroupMember = base.AllSelObjects.First<object>() as IStorageGroupMember;
+						StorageGroup storageGroup = (storageGroupMember != null) ? storageGroupMember.Group : null;
+						if (storageGroup != null)
+						{
+							foreach (object obj in base.AllSelObjects)
+							{
+								IStorageGroupMember storageGroupMember2 = obj as IStorageGroupMember;
+								if (storageGroupMember2 == null)
+								{
+									flag = false;
+									break;
+								}
+								if (storageGroupMember2.Group != storageGroup)
+								{
+									flag = false;
+									break;
+								}
+							}
+							if (flag)
+							{
+								IStorageGroupMember storageGroupMember3 = base.AllSelObjects.First<object>() as IStorageGroupMember;
+								if (storageGroupMember3 == null)
+								{
+									return null;
+								}
+								return storageGroupMember3.Group;
+							}
+						}
+						return null;
+					}
+					return base.SelObject as IStoreSettingsParent;
+				}
+			}
+		}
+
+		// Token: 0x17002448 RID: 9288
+		// (get) Token: 0x0600C3C0 RID: 50112 RVA: 0x00479E98 File Offset: 0x00478098
+		public override bool IsVisible
+		{
+			get
+			{
+				if (base.SelObject == null)
+				{
+					if (base.AllSelObjects.Count > 1)
+					{
+						using (List<object>.Enumerator enumerator = base.AllSelObjects.GetEnumerator())
+						{
+							while (enumerator.MoveNext())
+							{
+								object obj = enumerator.Current;
+								Thing thing = obj as Thing;
+								if (thing != null && thing.Faction != null && thing.Faction != Faction.OfPlayer)
+								{
+									return false;
+								}
+							}
+							goto IL_8F;
+						}
+						return false;
+					}
+					return false;
+				}
+				Thing thing2 = base.SelObject as Thing;
+				if (thing2 != null && thing2.Faction != null && thing2.Faction != Faction.OfPlayer)
+				{
+					return false;
+				}
+				IL_8F:
+				IStoreSettingsParent selStoreSettingsParent = this.SelStoreSettingsParent;
+				return selStoreSettingsParent != null && selStoreSettingsParent.StorageTabVisible;
+			}
+		}
+
+		// Token: 0x17002449 RID: 9289
+		// (get) Token: 0x0600C3C1 RID: 50113 RVA: 0x00479F5C File Offset: 0x0047815C
+		protected virtual bool IsPrioritySettingVisible
+		{
+			get
+			{
+				return true;
+			}
+		}
+
+		// Token: 0x1700244A RID: 9290
+		// (get) Token: 0x0600C3C2 RID: 50114 RVA: 0x00479F5F File Offset: 0x0047815F
+		private float TopAreaHeight
+		{
+			get
+			{
+				return (float)(this.IsPrioritySettingVisible ? 35 : 20);
+			}
+		}
+
+		// Token: 0x0600C3C3 RID: 50115 RVA: 0x00479F70 File Offset: 0x00478170
+		public ITab_Storage()
+		{
+			this.size = ITab_Storage.WinSize;
+			this.labelKey = "TabStorage";
+			this.tutorTag = "Storage";
+		}
+
+		// Token: 0x0600C3C4 RID: 50116 RVA: 0x00479FA4 File Offset: 0x004781A4
+		public override void OnOpen()
+		{
+			base.OnOpen();
+			this.thingFilterState.quickSearch.Reset();
+		}
+
+		// Token: 0x0600C3C5 RID: 50117 RVA: 0x00479FBC File Offset: 0x004781BC
+		protected override void FillTab()
+		{
+			IStoreSettingsParent storeSettingsParent = this.SelStoreSettingsParent;
+			StorageSettings settings = storeSettingsParent.GetStoreSettings();
+			Rect rect = new Rect(0f, 0f, ITab_Storage.WinSize.x, ITab_Storage.WinSize.y).ContractedBy(10f);
+			Widgets.BeginGroup(rect);
+			if (this.IsPrioritySettingVisible)
+			{
+				Text.Font = GameFont.Small;
+				Rect rect2 = new Rect(0f, 0f, 160f, this.TopAreaHeight - 6f);
+				if (Widgets.ButtonText(rect2, "Priority".Translate() + ": " + settings.Priority.Label().CapitalizeFirst(), true, true, true, null))
+				{
+					List<FloatMenuOption> list = new List<FloatMenuOption>();
+					foreach (object obj in Enum.GetValues(typeof(StoragePriority)))
+					{
+						StoragePriority storagePriority = (StoragePriority)obj;
+						if (storagePriority != StoragePriority.Unstored)
+						{
+							StoragePriority localPr = storagePriority;
+							list.Add(new FloatMenuOption(localPr.Label().CapitalizeFirst(), delegate()
+							{
+								settings.Priority = localPr;
+							}, MenuOptionPriority.Default, null, null, 0f, null, null, true, 0));
+						}
+					}
+					Find.WindowStack.Add(new FloatMenu(list));
+				}
+				UIHighlighter.HighlightOpportunity(rect2, "StoragePriority");
+			}
+			ThingFilter parentFilter = null;
+			if (storeSettingsParent.GetParentStoreSettings() != null)
+			{
+				parentFilter = storeSettingsParent.GetParentStoreSettings().filter;
+			}
+			Rect rect3 = new Rect(0f, this.TopAreaHeight, rect.width, rect.height - this.TopAreaHeight);
+			Bill[] first = (from b in BillUtility.GlobalBills()
+			where b is Bill_Production && b.GetSlotGroup() == storeSettingsParent && b.recipe.WorkerCounter.CanPossiblyStore((Bill_Production)b, b.GetSlotGroup())
+			select b).ToArray<Bill>();
+			ThingFilterUI.DoThingFilterConfigWindow(rect3, this.thingFilterState, settings.filter, parentFilter, 8, null, this.HiddenSpecialThingFilters(), false, false, false, null, null);
+			Bill[] second = (from b in BillUtility.GlobalBills()
+			where b is Bill_Production && b.GetSlotGroup() == storeSettingsParent && b.recipe.WorkerCounter.CanPossiblyStore((Bill_Production)b, b.GetSlotGroup())
+			select b).ToArray<Bill>();
+			foreach (Bill bill in first.Except(second))
+			{
+				Messages.Message("MessageBillValidationStoreZoneInsufficient".Translate(bill.LabelCap, bill.billStack.billGiver.LabelShort.CapitalizeFirst(), SlotGroup.GetGroupLabel(bill.GetSlotGroup())), bill.billStack.billGiver as Thing, MessageTypeDefOf.RejectInput, false);
+			}
+			PlayerKnowledgeDatabase.KnowledgeDemonstrated(ConceptDefOf.StorageTab, KnowledgeAmount.FrameDisplayed);
+			Widgets.EndGroup();
+		}
+
+		// Token: 0x0600C3C6 RID: 50118 RVA: 0x0047A2C4 File Offset: 0x004784C4
+		protected IStoreSettingsParent GetThingOrThingCompStoreSettingsParent(Thing t)
+		{
+			IStoreSettingsParent storeSettingsParent = t as IStoreSettingsParent;
+			if (storeSettingsParent != null)
+			{
+				return storeSettingsParent;
+			}
+			ThingWithComps thingWithComps = t as ThingWithComps;
+			if (thingWithComps != null)
+			{
+				List<ThingComp> allComps = thingWithComps.AllComps;
+				for (int i = 0; i < allComps.Count; i++)
+				{
+					storeSettingsParent = (allComps[i] as IStoreSettingsParent);
+					if (storeSettingsParent != null)
+					{
+						return storeSettingsParent;
+					}
+				}
+			}
+			return null;
+		}
+
+		// Token: 0x0600C3C7 RID: 50119 RVA: 0x0047A312 File Offset: 0x00478512
+		public override void Notify_ClickOutsideWindow()
+		{
+			base.Notify_ClickOutsideWindow();
+			this.thingFilterState.quickSearch.Unfocus();
+		}
+
+		// Token: 0x0600C3C8 RID: 50120 RVA: 0x0047A32A File Offset: 0x0047852A
+		private IEnumerable<SpecialThingFilterDef> HiddenSpecialThingFilters()
+		{
+			return new ITab_Storage.<HiddenSpecialThingFilters>d__15(-2);
+		}
+
+		// Token: 0x04006FE1 RID: 28641
+		private ThingFilterUI.UIState thingFilterState = new ThingFilterUI.UIState();
+
+		// Token: 0x04006FE2 RID: 28642
+		private static readonly Vector2 WinSize = new Vector2(300f, 480f);
+	}
+}

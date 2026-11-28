@@ -1,0 +1,47 @@
+﻿using System;
+using RimWorld;
+using UnityEngine;
+
+namespace Verse
+{
+	// Token: 0x020003D7 RID: 983
+	public class PawnRenderNodeWorker_NociosphereSegment : PawnRenderNodeWorker
+	{
+		// Token: 0x06001CDD RID: 7389 RVA: 0x000B0E44 File Offset: 0x000AF044
+		public override Vector3 OffsetFor(PawnRenderNode node, PawnDrawParms parms, out Vector3 pivot)
+		{
+			Vector3 vector = base.OffsetFor(node, parms, out pivot);
+			PawnRenderNodeProperties_NociosphereSegment pawnRenderNodeProperties_NociosphereSegment = node.Props as PawnRenderNodeProperties_NociosphereSegment;
+			if (pawnRenderNodeProperties_NociosphereSegment == null)
+			{
+				return vector;
+			}
+			CompNociosphere compNociosphere;
+			if (!parms.pawn.TryGetComp(out compNociosphere))
+			{
+				return vector;
+			}
+			vector += pawnRenderNodeProperties_NociosphereSegment.offset.ToVector3() / 6f;
+			Vector3 vector2 = vector * compNociosphere.segScale;
+			return new Vector3(vector2.x, 0f, vector2.z);
+		}
+
+		// Token: 0x06001CDE RID: 7390 RVA: 0x000B0EBC File Offset: 0x000AF0BC
+		public override MaterialPropertyBlock GetMaterialPropertyBlock(PawnRenderNode node, Material material, PawnDrawParms parms)
+		{
+			MaterialPropertyBlock materialPropertyBlock = base.GetMaterialPropertyBlock(node, material, parms);
+			CompActivity compActivity;
+			if (!parms.pawn.TryGetComp(out compActivity))
+			{
+				return materialPropertyBlock;
+			}
+			Color lineColor = PawnRenderNodeWorker_NociosphereSegment.LineColor;
+			lineColor.a = Mathf.Clamp01(compActivity.ActivityLevel);
+			materialPropertyBlock.SetColor(ShaderPropertyIDs.ColorTwo, lineColor);
+			return materialPropertyBlock;
+		}
+
+		// Token: 0x0400175A RID: 5978
+		private static readonly Color LineColor = new Color(0.89f, 0.21f, 0.13f);
+	}
+}

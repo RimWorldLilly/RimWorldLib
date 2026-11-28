@@ -1,0 +1,52 @@
+﻿using System;
+using RimWorld;
+
+namespace Verse
+{
+	// Token: 0x02000244 RID: 580
+	public static class BloodRainUtility
+	{
+		// Token: 0x06001124 RID: 4388 RVA: 0x000620D4 File Offset: 0x000602D4
+		public static bool ExposedToBloodRain(Pawn pawn)
+		{
+			if (pawn.MapHeld == null)
+			{
+				return false;
+			}
+			if (pawn.SpawnedParentOrMe is PawnFlyer)
+			{
+				return false;
+			}
+			GameCondition_BloodRain activeCondition = pawn.MapHeld.gameConditionManager.GetActiveCondition<GameCondition_BloodRain>();
+			return activeCondition != null && !activeCondition.HiddenByOtherCondition(pawn.MapHeld) && (activeCondition.TicksPassed > 2000 && pawn.Map != null) && !pawn.Position.Roofed(pawn.Map);
+		}
+
+		// Token: 0x06001125 RID: 4389 RVA: 0x0006214C File Offset: 0x0006034C
+		public static void BloodRainTick(Pawn pawn)
+		{
+			if (!ModsConfig.AnomalyActive || !BloodRainUtility.ExposedToBloodRain(pawn))
+			{
+				return;
+			}
+			if ((pawn.RaceProps.Humanlike || pawn.IsAnimal) && !pawn.RaceProps.Dryad && !pawn.health.hediffSet.HasHediff(HediffDefOf.BloodRage, false))
+			{
+				pawn.health.AddHediff(HediffDefOf.BloodRage, null, null, null);
+			}
+		}
+
+		// Token: 0x06001126 RID: 4390 RVA: 0x000621C0 File Offset: 0x000603C0
+		public static bool TryTriggerBerserkShort(Pawn pawn)
+		{
+			if (ModsConfig.AnomalyActive && pawn.health.hediffSet.HasHediff(HediffDefOf.BloodRage, false))
+			{
+				bool flag = MentalBreakDefOf.BerserkShort.Worker.TryStart(pawn, "MentalBreakReason_BloodRage".Translate(), false);
+				if (flag && MessagesRepeatAvoider.MessageShowAllowed("MessageBerserkBloodrain-" + pawn.LabelShort, 240f))
+				{
+					Messages.Message("Berserk_BloodRain".Translate(pawn), pawn, MessageTypeDefOf.NeutralEvent, false);
+				}
+				return flag;
+			}
+			return false;
+		}
+	}
+}

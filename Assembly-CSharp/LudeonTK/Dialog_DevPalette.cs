@@ -1,0 +1,271 @@
+﻿using System;
+using System.Collections.Generic;
+using UnityEngine;
+using Verse;
+
+namespace LudeonTK
+{
+	// Token: 0x0200004B RID: 75
+	[StaticConstructorOnStartup]
+	public class Dialog_DevPalette : Window_Dev
+	{
+		// Token: 0x1700005F RID: 95
+		// (get) Token: 0x060001F4 RID: 500 RVA: 0x0000E53A File Offset: 0x0000C73A
+		public override bool IsDebug
+		{
+			get
+			{
+				return true;
+			}
+		}
+
+		// Token: 0x17000060 RID: 96
+		// (get) Token: 0x060001F5 RID: 501 RVA: 0x0000E53D File Offset: 0x0000C73D
+		protected override float Margin
+		{
+			get
+			{
+				return 4f;
+			}
+		}
+
+		// Token: 0x17000061 RID: 97
+		// (get) Token: 0x060001F6 RID: 502 RVA: 0x0000E544 File Offset: 0x0000C744
+		private List<DebugActionNode> Nodes
+		{
+			get
+			{
+				if (Dialog_DevPalette.cachedNodes == null)
+				{
+					Dialog_DevPalette.cachedNodes = new List<DebugActionNode>();
+					for (int i = 0; i < Prefs.DebugActionsPalette.Count; i++)
+					{
+						DebugActionNode node = Dialog_Debug.GetNode(Prefs.DebugActionsPalette[i]);
+						if (node != null)
+						{
+							Dialog_DevPalette.cachedNodes.Add(node);
+						}
+					}
+				}
+				return Dialog_DevPalette.cachedNodes;
+			}
+		}
+
+		// Token: 0x060001F7 RID: 503 RVA: 0x0000E59C File Offset: 0x0000C79C
+		public Dialog_DevPalette()
+		{
+			this.draggable = true;
+			this.focusWhenOpened = false;
+			this.drawShadow = false;
+			this.closeOnAccept = false;
+			this.closeOnCancel = false;
+			this.preventCameraMotion = false;
+			this.drawInScreenshotMode = false;
+			this.windowPosition = Prefs.DevPalettePosition;
+			this.onlyDrawInDevMode = true;
+			this.doCloseX = true;
+			this.EnsureAllNodesValid();
+		}
+
+		// Token: 0x060001F8 RID: 504 RVA: 0x0000E614 File Offset: 0x0000C814
+		private void EnsureAllNodesValid()
+		{
+			Dialog_DevPalette.cachedNodes = null;
+			for (int i = Prefs.DebugActionsPalette.Count - 1; i >= 0; i--)
+			{
+				string text = Prefs.DebugActionsPalette[i];
+				if (Dialog_Debug.GetNode(text) == null)
+				{
+					Log.Warning("Could not find node from path '" + text + "'. Removing.");
+					Prefs.DebugActionsPalette.RemoveAt(i);
+					Prefs.Save();
+				}
+			}
+		}
+
+		// Token: 0x060001F9 RID: 505 RVA: 0x0000E678 File Offset: 0x0000C878
+		public override void DoWindowContents(Rect inRect)
+		{
+			Text.Font = GameFont.Small;
+			DevGUI.Label(new Rect(inRect.x, inRect.y, inRect.width, 24f), "Dev palette");
+			inRect.yMin += 26f;
+			if (Prefs.DebugActionsPalette.Count == 0)
+			{
+				GUI.color = ColoredText.SubtleGrayColor;
+				DevGUI.Label(inRect, "<i>To add commands here, open the debug actions menu and click the pin icons.</i>");
+				GUI.color = Color.white;
+			}
+			else
+			{
+				if (Event.current.type == EventType.repaint)
+				{
+					this.reorderableGroupID = ReorderableWidget.NewGroup(delegate(int from, int to)
+					{
+						string item = Prefs.DebugActionsPalette[from];
+						Prefs.DebugActionsPalette.Insert(to, item);
+						Prefs.DebugActionsPalette.RemoveAt((from < to) ? from : (from + 1));
+						Dialog_DevPalette.cachedNodes = null;
+						Prefs.Save();
+					}, ReorderableDirection.Vertical, inRect, 2f, null, false);
+				}
+				GUI.BeginGroup(inRect);
+				float num = 0f;
+				Text.Font = GameFont.Tiny;
+				for (int i = 0; i < this.Nodes.Count; i++)
+				{
+					DebugActionNode debugActionNode = this.Nodes[i];
+					float num2 = 0f;
+					num2 += 22f;
+					Rect rect = new Rect(num2, num, inRect.width - 44f, 22f);
+					if (debugActionNode.ActiveNow)
+					{
+						if (debugActionNode.settingsField != null)
+						{
+							Rect rect2 = rect;
+							rect2.xMax -= rect2.height + 4f;
+							DevGUI.Label(rect2, "  " + this.PrettifyNodeName(debugActionNode));
+							GUI.DrawTexture(new Rect(rect2.xMax, rect2.y, rect2.height, rect2.height), debugActionNode.On ? DevGUI.CheckOn : DevGUI.CheckOff);
+							DevGUI.DrawHighlightIfMouseover(rect);
+							if (DevGUI.ButtonInvisible(rect))
+							{
+								debugActionNode.Enter(null);
+							}
+						}
+						else if (DevGUI.ButtonText(rect, "  " + this.PrettifyNodeName(debugActionNode), new TextAnchor?(TextAnchor.MiddleLeft)))
+						{
+							debugActionNode.Enter(Find.WindowStack.WindowOfType<Dialog_Debug>());
+						}
+					}
+					else
+					{
+						DevGUI.Label(rect, "  " + this.PrettifyNodeName(debugActionNode));
+					}
+					num2 += rect.width;
+					Rect rect3 = new Rect(0f, num, 22f, 22f);
+					Rect rect4 = new Rect(rect3.x, rect3.y, inRect.width - 22f, 22f);
+					if ((Event.current.type != EventType.mouseDown || Mouse.IsOver(rect3)) && ReorderableWidget.Reorderable(this.reorderableGroupID, rect4, false, true))
+					{
+						DevGUI.DrawRect(rect4, DevGUI.WindowBGFillColor * new Color(1f, 1f, 1f, 0.5f));
+					}
+					DevGUI.ButtonImage(rect3.ContractedBy(1f), TexButton.DragHash);
+					Rect butRect = new Rect(num2, num, 22f, 22f);
+					if (Widgets.ButtonImage(butRect, TexButton.Delete, true, null))
+					{
+						Prefs.DebugActionsPalette.RemoveAt(i);
+						Prefs.Save();
+						Dialog_DevPalette.cachedNodes = null;
+						this.SetInitialSizeAndPosition();
+					}
+					num2 += butRect.width;
+					num += 24f;
+				}
+				Text.Font = GameFont.Small;
+				GUI.EndGroup();
+			}
+			if (!Mathf.Approximately(this.windowRect.x, this.windowPosition.x) || !Mathf.Approximately(this.windowRect.y, this.windowPosition.y))
+			{
+				this.windowPosition = new Vector2(this.windowRect.x, this.windowRect.y);
+				Prefs.DevPalettePosition = this.windowPosition;
+			}
+		}
+
+		// Token: 0x060001FA RID: 506 RVA: 0x0000E9FC File Offset: 0x0000CBFC
+		public static void ToggleAction(string actionLabel)
+		{
+			if (Prefs.DebugActionsPalette.Contains(actionLabel))
+			{
+				Prefs.DebugActionsPalette.Remove(actionLabel);
+			}
+			else
+			{
+				Prefs.DebugActionsPalette.Add(actionLabel);
+			}
+			Prefs.Save();
+			Dialog_DevPalette.cachedNodes = null;
+			Dialog_DevPalette dialog_DevPalette = Find.WindowStack.WindowOfType<Dialog_DevPalette>();
+			if (dialog_DevPalette == null)
+			{
+				return;
+			}
+			dialog_DevPalette.SetInitialSizeAndPosition();
+		}
+
+		// Token: 0x060001FB RID: 507 RVA: 0x0000EA50 File Offset: 0x0000CC50
+		protected override void SetInitialSizeAndPosition()
+		{
+			GameFont font = Text.Font;
+			Text.Font = GameFont.Small;
+			Vector2 vector = new Vector2(Text.CalcSize("Dev palette").x + 48f + 10f, 28f);
+			if (!this.Nodes.Any<DebugActionNode>())
+			{
+				vector.x = Mathf.Max(vector.x, 200f);
+				vector.y += Text.CalcHeight("<i>To add commands here, open the debug actions menu and click the pin icons.</i>", vector.x) + this.Margin * 2f;
+			}
+			else
+			{
+				Text.Font = GameFont.Tiny;
+				for (int i = 0; i < this.Nodes.Count; i++)
+				{
+					vector.x = Mathf.Max(vector.x, Text.CalcSize("  " + this.PrettifyNodeName(this.Nodes[i]) + "  ").x + 48f);
+				}
+				vector.y += (float)this.Nodes.Count * 22f + (float)((this.Nodes.Count + 1) * 2) + this.Margin;
+			}
+			this.windowPosition.x = Mathf.Clamp(this.windowPosition.x, 0f, (float)UI.screenWidth - vector.x);
+			this.windowPosition.y = Mathf.Clamp(this.windowPosition.y, 0f, (float)UI.screenHeight - vector.y);
+			this.windowRect = new Rect(this.windowPosition.x, this.windowPosition.y, vector.x, vector.y);
+			this.windowRect = this.windowRect.Rounded();
+			Text.Font = font;
+		}
+
+		// Token: 0x060001FC RID: 508 RVA: 0x0000EC14 File Offset: 0x0000CE14
+		private string PrettifyNodeName(DebugActionNode node)
+		{
+			string path = node.Path;
+			string text;
+			if (this.nameCache.TryGetValue(path, out text))
+			{
+				return text;
+			}
+			DebugActionNode debugActionNode = node;
+			text = debugActionNode.LabelNow.Replace("...", "");
+			while (debugActionNode.parent != null && !debugActionNode.parent.IsRoot && (debugActionNode.parent.parent == null || !debugActionNode.parent.parent.IsRoot))
+			{
+				text = debugActionNode.parent.LabelNow.Replace("...", "") + "\\" + text;
+				debugActionNode = debugActionNode.parent;
+			}
+			this.nameCache[path] = text;
+			return text;
+		}
+
+		// Token: 0x060001FD RID: 509 RVA: 0x0000ECC3 File Offset: 0x0000CEC3
+		public override void PostClose()
+		{
+			base.PostOpen();
+			DebugSettings.devPalette = false;
+		}
+
+		// Token: 0x04000101 RID: 257
+		private Vector2 windowPosition;
+
+		// Token: 0x04000102 RID: 258
+		private static List<DebugActionNode> cachedNodes;
+
+		// Token: 0x04000103 RID: 259
+		private int reorderableGroupID = -1;
+
+		// Token: 0x04000104 RID: 260
+		private Dictionary<string, string> nameCache = new Dictionary<string, string>();
+
+		// Token: 0x04000105 RID: 261
+		private const string Title = "Dev palette";
+
+		// Token: 0x04000106 RID: 262
+		private const float ButtonSize = 24f;
+
+		// Token: 0x04000107 RID: 263
+		private const float ButtonSize_Small = 22f;
+
+		// Token: 0x04000108 RID: 264
+		private const string NoActionDesc = "<i>To add commands here, open the debug actions menu and click the pin icons.</i>";
+	}
+}

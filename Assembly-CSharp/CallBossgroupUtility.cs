@@ -1,0 +1,132 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using RimWorld;
+using Verse;
+using Verse.AI;
+
+// Token: 0x0200001F RID: 31
+public static class CallBossgroupUtility
+{
+	// Token: 0x060000E8 RID: 232 RVA: 0x00008B54 File Offset: 0x00006D54
+	public static void TryStartSummonBossgroupJob(BossgroupDef def, Pawn pawn, bool forced = true)
+	{
+		ThingDef bossgroupCaller = CallBossgroupUtility.GetBossgroupCaller(def);
+		List<Thing> list = pawn.Map.listerThings.ThingsOfDef(bossgroupCaller);
+		list.SortBy((Thing t) => t.Position.DistanceToSquared(pawn.Position));
+		for (int i = 0; i < list.Count; i++)
+		{
+			if (pawn.CanReserveAndReach(list[i], PathEndMode.Touch, Danger.Deadly, 1, -1, null, forced) && list[i].TryGetComp<CompUsable>().CanBeUsedBy(pawn, false, false))
+			{
+				list[i].TryGetComp<CompUsable>().TryStartUseJob(pawn, null, forced);
+				return;
+			}
+		}
+	}
+
+	// Token: 0x060000E9 RID: 233 RVA: 0x00008C10 File Offset: 0x00006E10
+	public static AcceptanceReport BossgroupEverCallable(Pawn pawn, BossgroupDef def, bool forced = true)
+	{
+		if (!pawn.Spawned)
+		{
+			return false;
+		}
+		ThingDef bossgroupCaller = CallBossgroupUtility.GetBossgroupCaller(def);
+		List<Thing> list = pawn.Map.listerThings.ThingsOfDef(bossgroupCaller);
+		if (list.Count <= 0)
+		{
+			return "NoSubject".Translate(bossgroupCaller.label);
+		}
+		bool flag = false;
+		for (int i = 0; i < list.Count; i++)
+		{
+			if (pawn.CanReach(list[i], PathEndMode.InteractionCell, Danger.Deadly, false, false, TraverseMode.ByPawn))
+			{
+				flag = true;
+				break;
+			}
+		}
+		if (!flag)
+		{
+			return "NoReachableBossgroupCaller".Translate(bossgroupCaller.label);
+		}
+		bool flag2 = false;
+		for (int j = 0; j < list.Count; j++)
+		{
+			if (pawn.CanReserve(list[j], 1, -1, null, forced))
+			{
+				flag2 = true;
+				break;
+			}
+		}
+		if (!flag2)
+		{
+			return "NoReservableBossgroupCaller".Translate(bossgroupCaller.label);
+		}
+		if (bossgroupCaller.HasComp(typeof(CompPowerTrader)))
+		{
+			bool flag3 = false;
+			for (int k = 0; k < list.Count; k++)
+			{
+				if (list[k].TryGetComp<CompPowerTrader>().PowerOn)
+				{
+					flag3 = true;
+					break;
+				}
+			}
+			if (!flag3)
+			{
+				return "NoPoweredBossgroupCaller".Translate(bossgroupCaller.label);
+			}
+		}
+		return true;
+	}
+
+	// Token: 0x060000EA RID: 234 RVA: 0x00008D74 File Offset: 0x00006F74
+	public static ThingDef GetBossgroupCaller(BossgroupDef def)
+	{
+		if (CallBossgroupUtility.cachedBossCallers == null)
+		{
+			CallBossgroupUtility.cachedBossCallers = (from x in DefDatabase<ThingDef>.AllDefs
+			where x.GetCompProperties<CompProperties_Useable_CallBossgroup>() != null
+			select x).ToList<ThingDef>();
+		}
+		foreach (ThingDef thingDef in CallBossgroupUtility.cachedBossCallers)
+		{
+			CompProperties_Useable_CallBossgroup compProperties = thingDef.GetCompProperties<CompProperties_Useable_CallBossgroup>();
+			if (compProperties != null && compProperties.bossgroupDef == def)
+			{
+				return thingDef;
+			}
+		}
+		return null;
+	}
+
+	// Token: 0x060000EB RID: 235 RVA: 0x00008E14 File Offset: 0x00007014
+	public static PawnKindDef GetPendingBossgroup()
+	{
+		List<Quest> questsListForReading = Find.QuestManager.QuestsListForReading;
+		for (int i = 0; i < questsListForReading.Count; i++)
+		{
+			if (questsListForReading[i].State == QuestState.Ongoing)
+			{
+				List<QuestPart> partsListForReading = questsListForReading[i].PartsListForReading;
+				for (int j = 0; j < partsListForReading.Count; j++)
+				{
+					QuestPart_Bossgroup questPart_Bossgroup = partsListForReading[j] as QuestPart_Bossgroup;
+					if (questPart_Bossgroup != null && questPart_Bossgroup.bosses.Count > 0)
+					{
+						if (questPart_Bossgroup.bosses.All((Pawn p) => !p.Spawned && !p.Dead))
+						{
+							return questPart_Bossgroup.bosses[0].kindDef;
+						}
+					}
+				}
+			}
+		}
+		return null;
+	}
+
+	// Token: 0x04000046 RID: 70
+	private static List<ThingDef> cachedBossCallers;
+}

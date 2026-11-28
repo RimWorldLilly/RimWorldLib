@@ -1,0 +1,25 @@
+﻿using System;
+using RimWorld.Planet;
+using Verse;
+
+namespace RimWorld
+{
+	// Token: 0x02000DE9 RID: 3561
+	public class ThoughtWorker_Precept_SpaceHabitat : ThoughtWorker_Precept
+	{
+		// Token: 0x060060B8 RID: 24760 RVA: 0x00230368 File Offset: 0x0022E568
+		protected override ThoughtState ShouldHaveThought(Pawn p)
+		{
+			if (!ModsConfig.OdysseyActive || !p.SpawnedOrAnyParentSpawned)
+			{
+				return ThoughtState.Inactive;
+			}
+			PlanetTile tile = p.Tile;
+			if (tile.Valid && tile.LayerDef.isSpace)
+			{
+				return ThoughtState.ActiveAtStage(1);
+			}
+			return ThoughtState.ActiveAtStage(0);
+		}
+	}
+}

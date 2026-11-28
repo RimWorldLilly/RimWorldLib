@@ -1,0 +1,360 @@
+﻿using System;
+using System.Collections.Generic;
+using UnityEngine;
+using Verse;
+using Verse.Sound;
+
+namespace RimWorld
+{
+	// Token: 0x02001A4C RID: 6732
+	public class MinifiedThing : ThingWithComps, IThingHolder
+	{
+		// Token: 0x17001D91 RID: 7569
+		// (get) Token: 0x0600A89C RID: 43164 RVA: 0x003BE0CD File Offset: 0x003BC2CD
+		// (set) Token: 0x0600A89D RID: 43165 RVA: 0x003BE0EC File Offset: 0x003BC2EC
+		public Thing InnerThing
+		{
+			get
+			{
+				if (this.innerContainer.Count == 0)
+				{
+					return null;
+				}
+				return this.innerContainer[0];
+			}
+			set
+			{
+				if (value == this.InnerThing)
+				{
+					return;
+				}
+				if (value == null)
+				{
+					this.innerContainer.Clear();
+					return;
+				}
+				if (this.innerContainer.Count != 0)
+				{
+					Log.Warning(string.Concat(new string[]
+					{
+						"Assigned 2 things to the same MinifiedThing ",
+						this.ToStringSafe<MinifiedThing>(),
+						" (first=",
+						this.innerContainer[0].ToStringSafe<Thing>(),
+						" second=",
+						value.ToStringSafe<Thing>(),
+						")"
+					}));
+					this.innerContainer.ClearAndDestroyContents(DestroyMode.Vanish);
+				}
+				this.innerContainer.TryAdd(value, true);
+			}
+		}
+
+		// Token: 0x17001D92 RID: 7570
+		// (get) Token: 0x0600A89E RID: 43166 RVA: 0x003BE190 File Offset: 0x003BC390
+		public override Graphic Graphic
+		{
+			get
+			{
+				if (this.cachedGraphic == null)
+				{
+					this.cachedGraphic = this.InnerThing.Graphic.ExtractInnerGraphicFor(this.InnerThing, null);
+					if ((float)this.InnerThing.def.size.x > 1.1f || (float)this.InnerThing.def.size.z > 1.1f)
+					{
+						Vector2 minifiedDrawSize = this.GetMinifiedDrawSize(this.InnerThing.def.size.ToVector2(), 1.1f);
+						Vector2 newDrawSize = new Vector2(minifiedDrawSize.x / (float)this.InnerThing.def.size.x * this.cachedGraphic.drawSize.x, minifiedDrawSize.y / (float)this.InnerThing.def.size.z * this.cachedGraphic.drawSize.y);
+						this.cachedGraphic = this.cachedGraphic.GetCopy(newDrawSize, null);
+					}
+					if (Math.Abs(this.InnerThing.def.minifiedDrawScale - 1f) > 1E-45f)
+					{
+						this.cachedGraphic = this.cachedGraphic.GetCopy(new Vector2(this.InnerThing.def.minifiedDrawScale * this.cachedGraphic.drawSize.x, this.InnerThing.def.minifiedDrawScale * this.cachedGraphic.drawSize.y), null);
+					}
+				}
+				return this.cachedGraphic;
+			}
+		}
+
+		// Token: 0x17001D93 RID: 7571
+		// (get) Token: 0x0600A89F RID: 43167 RVA: 0x003BE322 File Offset: 0x003BC522
+		public override string LabelNoCount
+		{
+			get
+			{
+				return this.InnerThing.LabelNoCount;
+			}
+		}
+
+		// Token: 0x17001D94 RID: 7572
+		// (get) Token: 0x0600A8A0 RID: 43168 RVA: 0x003BE32F File Offset: 0x003BC52F
+		public override string DescriptionDetailed
+		{
+			get
+			{
+				return this.InnerThing.DescriptionDetailed;
+			}
+		}
+
+		// Token: 0x17001D95 RID: 7573
+		// (get) Token: 0x0600A8A1 RID: 43169 RVA: 0x003BE33C File Offset: 0x003BC53C
+		public override string DescriptionFlavor
+		{
+			get
+			{
+				return this.InnerThing.DescriptionFlavor;
+			}
+		}
+
+		// Token: 0x17001D96 RID: 7574
+		// (get) Token: 0x0600A8A2 RID: 43170 RVA: 0x003BE349 File Offset: 0x003BC549
+		public override ModContentPack ContentSource
+		{
+			get
+			{
+				return this.InnerThing.ContentSource;
+			}
+		}
+
+		// Token: 0x17001D97 RID: 7575
+		// (get) Token: 0x0600A8A3 RID: 43171 RVA: 0x003BE356 File Offset: 0x003BC556
+		private Graphic CrateFrontGraphic
+		{
+			get
+			{
+				if (this.crateFrontGraphic == null)
+				{
+					this.crateFrontGraphic = this.LoadCrateFrontGraphic();
+				}
+				return this.crateFrontGraphic;
+			}
+		}
+
+		// Token: 0x0600A8A4 RID: 43172 RVA: 0x003BE372 File Offset: 0x003BC572
+		public static void TryInsertIntoAtlas()
+		{
+			GlobalTextureAtlasManager.TryInsertStatic(TextureAtlasGroup.Item, ContentFinder<Texture2D>.Get("Things/Item/Minified/CrateFront", true), null);
+			GlobalTextureAtlasManager.TryInsertStatic(TextureAtlasGroup.Item, ContentFinder<Texture2D>.Get("Things/Item/Minified/BurlapBag", true), null);
+		}
+
+		// Token: 0x0600A8A5 RID: 43173 RVA: 0x003BE39A File Offset: 0x003BC59A
+		public MinifiedThing()
+		{
+			this.innerContainer = new ThingOwner<Thing>(this, true, LookMode.Deep, true);
+		}
+
+		// Token: 0x0600A8A6 RID: 43174 RVA: 0x003BE3B1 File Offset: 0x003BC5B1
+		protected virtual Graphic LoadCrateFrontGraphic()
+		{
+			return GraphicDatabase.Get<Graphic_Single>("Things/Item/Minified/CrateFront", ShaderDatabase.Cutout, this.GetMinifiedDrawSize(this.InnerThing.def.size.ToVector2(), 1.1f) * 1.16f, Color.white);
+		}
+
+		// Token: 0x0600A8A7 RID: 43175 RVA: 0x003BE3F1 File Offset: 0x003BC5F1
+		protected override void Tick()
+		{
+			if (this.InnerThing == null)
+			{
+				Log.Error("MinifiedThing with null InnerThing. Destroying.");
+				this.Destroy(DestroyMode.Vanish);
+				return;
+			}
+			base.Tick();
+		}
+
+		// Token: 0x0600A8A8 RID: 43176 RVA: 0x003BE413 File Offset: 0x003BC613
+		protected override void TickInterval(int delta)
+		{
+			if (this.InnerThing == null && !base.Destroyed)
+			{
+				Log.Error("MinifiedThing with null InnerThing. Destroying.");
+				this.Destroy(DestroyMode.Vanish);
+				return;
+			}
+			base.TickInterval(delta);
+		}
+
+		// Token: 0x0600A8A9 RID: 43177 RVA: 0x003BE43E File Offset: 0x003BC63E
+		public ThingOwner GetDirectlyHeldThings()
+		{
+			return this.innerContainer;
+		}
+
+		// Token: 0x0600A8AA RID: 43178 RVA: 0x003BE446 File Offset: 0x003BC646
+		public void GetChildHolders(List<IThingHolder> outChildren)
+		{
+			ThingOwnerUtility.AppendThingHoldersFromThings(outChildren, this.GetDirectlyHeldThings());
+		}
+
+		// Token: 0x0600A8AB RID: 43179 RVA: 0x003BE454 File Offset: 0x003BC654
+		public override Thing SplitOff(int count)
+		{
+			MinifiedThing minifiedThing = (MinifiedThing)base.SplitOff(count);
+			if (minifiedThing != this)
+			{
+				minifiedThing.InnerThing = ThingMaker.MakeThing(this.InnerThing.def, this.InnerThing.Stuff);
+				ThingWithComps thingWithComps = this.InnerThing as ThingWithComps;
+				if (thingWithComps != null)
+				{
+					for (int i = 0; i < thingWithComps.AllComps.Count; i++)
+					{
+						thingWithComps.AllComps[i].PostSplitOff(minifiedThing.InnerThing);
+					}
+				}
+			}
+			return minifiedThing;
+		}
+
+		// Token: 0x0600A8AC RID: 43180 RVA: 0x003BE4D0 File Offset: 0x003BC6D0
+		public override bool CanStackWith(Thing other)
+		{
+			MinifiedThing minifiedThing = other as MinifiedThing;
+			return minifiedThing != null && base.CanStackWith(other) && this.InnerThing.CanStackWith(minifiedThing.InnerThing);
+		}
+
+		// Token: 0x0600A8AD RID: 43181 RVA: 0x003BE505 File Offset: 0x003BC705
+		public override void ExposeData()
+		{
+			base.ExposeData();
+			Scribe_Deep.Look<ThingOwner>(ref this.innerContainer, "innerContainer", new object[]
+			{
+				this
+			});
+		}
+
+		// Token: 0x0600A8AE RID: 43182 RVA: 0x003BE528 File Offset: 0x003BC728
+		public override void DrawExtraSelectionOverlays()
+		{
+			base.DrawExtraSelectionOverlays();
+			Blueprint_Install blueprint_Install = InstallBlueprintUtility.ExistingBlueprintFor(this);
+			if (blueprint_Install != null)
+			{
+				GenDraw.DrawLineBetween(this.TrueCenter(), blueprint_Install.TrueCenter());
+			}
+		}
+
+		// Token: 0x0600A8AF RID: 43183 RVA: 0x003BE558 File Offset: 0x003BC758
+		protected override void DrawAt(Vector3 drawLoc, bool flip = false)
+		{
+			if (this.InnerThing.def.minifiedManualDraw)
+			{
+				this.InnerThing.DrawNowAt(drawLoc, flip);
+				this.CrateFrontGraphic.DrawFromDef(drawLoc + Altitudes.AltIncVect * 0.1f, Rot4.North, null, 0f);
+				return;
+			}
+			this.CrateFrontGraphic.DrawFromDef(drawLoc + Altitudes.AltIncVect * 0.1f, Rot4.North, null, 0f);
+			Rot4 rot = (this.Graphic is Graphic_Single) ? Rot4.North : Rot4.South;
+			if (this.InnerThing.def.overrideMinifiedRot != Rot4.Invalid)
+			{
+				rot = this.InnerThing.def.overrideMinifiedRot;
+			}
+			Vector3 b = this.InnerThing.def.minifiedDrawOffset - this.Graphic.DrawOffset(rot);
+			this.Graphic.Draw(drawLoc + b, rot, this, 0f);
+		}
+
+		// Token: 0x0600A8B0 RID: 43184 RVA: 0x003BE660 File Offset: 0x003BC860
+		public override void Print(SectionLayer layer)
+		{
+			Vector3 drawPos = this.DrawPos;
+			Material matSingle = this.CrateFrontGraphic.MatSingle;
+			Vector2[] uvs;
+			Color32 color;
+			Graphic.TryGetTextureAtlasReplacementInfo(matSingle, TextureAtlasGroup.Item, false, false, out matSingle, out uvs, out color);
+			Printer_Plane.PrintPlane(layer, drawPos + Altitudes.AltIncVect * 0.1f, this.CrateFrontGraphic.drawSize, matSingle, 0f, false, uvs, null, 0.01f, 0f);
+			Rot4 rot = Rot4.South;
+			if (this.Graphic is Graphic_Single)
+			{
+				rot = Rot4.North;
+			}
+			if (this.InnerThing.def.overrideMinifiedRot != Rot4.Invalid)
+			{
+				rot = this.InnerThing.def.overrideMinifiedRot;
+			}
+			Material mat = this.Graphic.MatAt(rot, this);
+			Graphic.TryGetTextureAtlasReplacementInfo(mat, this.InnerThing.def.category.ToAtlasGroup(), false, false, out mat, out uvs, out color);
+			Printer_Plane.PrintPlane(layer, drawPos + this.InnerThing.def.minifiedDrawOffset, this.Graphic.drawSize, mat, 0f, false, uvs, null, 0.01f, 0f);
+		}
+
+		// Token: 0x0600A8B1 RID: 43185 RVA: 0x003BE780 File Offset: 0x003BC980
+		public override void Destroy(DestroyMode mode = DestroyMode.Vanish)
+		{
+			bool spawned = base.Spawned;
+			Map map = base.Map;
+			Thing innerThing = this.InnerThing;
+			if (innerThing != null)
+			{
+				innerThing.Notify_MinifiedThingAboutToBeDestroyed(mode);
+			}
+			base.Destroy(mode);
+			if (this.InnerThing != null)
+			{
+				InstallBlueprintUtility.CancelBlueprintsFor(this);
+				if (spawned)
+				{
+					if (mode == DestroyMode.Deconstruct)
+					{
+						SoundDefOf.Building_Deconstructed.PlayOneShot(new TargetInfo(base.Position, map, false));
+						GenLeaving.DoLeavingsFor(this.InnerThing, map, mode, this.OccupiedRect(), null, null);
+					}
+					else if (mode == DestroyMode.KillFinalize)
+					{
+						GenLeaving.DoLeavingsFor(this.InnerThing, map, mode, this.OccupiedRect(), null, null);
+					}
+				}
+				this.innerContainer.ClearAndDestroyContents(mode);
+			}
+		}
+
+		// Token: 0x0600A8B2 RID: 43186 RVA: 0x003BE821 File Offset: 0x003BCA21
+		public override void PreTraded(TradeAction action, Pawn playerNegotiator, ITrader trader)
+		{
+			base.PreTraded(action, playerNegotiator, trader);
+			InstallBlueprintUtility.CancelBlueprintsFor(this);
+		}
+
+		// Token: 0x0600A8B3 RID: 43187 RVA: 0x003BE832 File Offset: 0x003BCA32
+		public override IEnumerable<Gizmo> GetGizmos()
+		{
+			MinifiedThing.<GetGizmos>d__35 <GetGizmos>d__ = new MinifiedThing.<GetGizmos>d__35(-2);
+			<GetGizmos>d__.<>4__this = this;
+			return <GetGizmos>d__;
+		}
+
+		// Token: 0x0600A8B4 RID: 43188 RVA: 0x003BE844 File Offset: 0x003BCA44
+		public override string GetInspectString()
+		{
+			string text = "NotInstalled".Translate();
+			string inspectString = this.InnerThing.GetInspectString();
+			if (!inspectString.NullOrEmpty())
+			{
+				text += "\n";
+				text += inspectString;
+			}
+			return text;
+		}
+
+		// Token: 0x0600A8B5 RID: 43189 RVA: 0x003BE88C File Offset: 0x003BCA8C
+		protected Vector2 GetMinifiedDrawSize(Vector2 drawSize, float maxSideLength)
+		{
+			float num = maxSideLength / Mathf.Max(drawSize.x, drawSize.y);
+			if (num >= 1f)
+			{
+				return drawSize;
+			}
+			return drawSize * num;
+		}
+
+		// Token: 0x04006303 RID: 25347
+		public const float MaxMinifiedGraphicSize = 1.1f;
+
+		// Token: 0x04006304 RID: 25348
+		public const float CrateToGraphicScale = 1.16f;
+
+		// Token: 0x04006305 RID: 25349
+		private ThingOwner innerContainer;
+
+		// Token: 0x04006306 RID: 25350
+		protected Graphic cachedGraphic;
+
+		// Token: 0x04006307 RID: 25351
+		private Graphic crateFrontGraphic;
+	}
+}

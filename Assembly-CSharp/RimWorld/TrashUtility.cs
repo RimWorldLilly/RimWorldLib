@@ -1,0 +1,131 @@
+﻿using System;
+using Verse;
+using Verse.AI;
+
+namespace RimWorld
+{
+	// Token: 0x02000AE4 RID: 2788
+	public static class TrashUtility
+	{
+		// Token: 0x06005359 RID: 21337 RVA: 0x001F07B0 File Offset: 0x001EE9B0
+		public static bool ShouldTrashPlant(Pawn pawn, Plant p)
+		{
+			if (!p.sown || p.def.plant.IsTree || !p.FlammableNow || !TrashUtility.CanTrash(pawn, p))
+			{
+				return false;
+			}
+			foreach (IntVec3 c in CellRect.CenteredOn(p.Position, 2).ClipInsideMap(p.Map))
+			{
+				if (c.InBounds(p.Map) && c.ContainsStaticFire(p.Map))
+				{
+					return false;
+				}
+			}
+			return p.Position.Roofed(p.Map) || p.Map.weatherManager.RainRate <= 0.25f;
+		}
+
+		// Token: 0x0600535A RID: 21338 RVA: 0x001F0894 File Offset: 0x001EEA94
+		public static bool ShouldTrashBuilding(Pawn pawn, Building b, bool attackAllInert = false)
+		{
+			if (!TrashUtility.ShouldTrashBuilding(b))
+			{
+				return false;
+			}
+			if (pawn.mindState.spawnedByInfestationThingComp && b.GetComp<CompCreatesInfestations>() != null)
+			{
+				return false;
+			}
+			if (((b.def.building.isInert || b.def.IsFrame) && !attackAllInert) || b.def.building.isTrap)
+			{
+				int num = GenLocalDate.HourOfDay(pawn) / 3;
+				int specialSeed = b.GetHashCode() * 612361 ^ pawn.GetHashCode() * 391 ^ num * 73427324;
+				if (!Rand.ChanceSeeded(0.008f, specialSeed))
+				{
+					return false;
+				}
+			}
+			return TrashUtility.CanTrash(pawn, b) && pawn.HostileTo(b);
+		}
+
+		// Token: 0x0600535B RID: 21339 RVA: 0x001F0948 File Offset: 0x001EEB48
+		public static bool ShouldTrashBuilding(Building b)
+		{
+			if (((b != null) ? b.def.building : null) == null)
+			{
+				return false;
+			}
+			if (!b.def.useHitPoints || b.def.building.ai_neverTrashThis || b.IsClearableFreeBuilding)
+			{
+				return false;
+			}
+			if (b.def.building.isTrap)
+			{
+				return false;
+			}
+			CompCanBeDormant comp = b.GetComp<CompCanBeDormant>();
+			return (comp == null || comp.Awake) && (b.Faction == null || b.Faction != Faction.OfMechanoids);
+		}
+
+		// Token: 0x0600535C RID: 21340 RVA: 0x001F09D3 File Offset: 0x001EEBD3
+		private static bool CanTrash(Pawn pawn, Thing t)
+		{
+			return pawn.CanReach(t, PathEndMode.Touch, Danger.Some, false, false, TraverseMode.ByPawn) && !t.IsBurning();
+		}
+
+		// Token: 0x0600535D RID: 21341 RVA: 0x001F09F4 File Offset: 0x001EEBF4
+		public static Job TrashJob(Pawn pawn, Thing t, bool allowPunchingInert = false, bool killIncappedTarget = false)
+		{
+			if (t is Plant && t.FlammableNow)
+			{
+				Job job = JobMaker.MakeJob(JobDefOf.Ignite, t);
+				TrashUtility.FinalizeTrashJob(job);
+				return job;
+			}
+			if (pawn.equipment != null && Rand.Value < 0.7f)
+			{
+				foreach (Verb verb in pawn.equipment.AllEquipmentVerbs)
+				{
+					if (verb.verbProps.ai_IsBuildingDestroyer)
+					{
+						Job job2 = JobMaker.MakeJob(JobDefOf.UseVerbOnThing, t);
+						job2.verbToUse = verb;
+						TrashUtility.FinalizeTrashJob(job2);
+						return job2;
+					}
+				}
+			}
+			Job job3;
+			if (Rand.Value < 0.35f && pawn.natives.IgniteVerb != null && pawn.natives.IgniteVerb.IsStillUsableBy(pawn) && t.FlammableNow && !t.IsBurning() && !(t is Building_Door) && FireUtility.GetEffectiveVacuumForFire(t.Position, t.Map) <= 0f)
+			{
+				job3 = JobMaker.MakeJob(JobDefOf.Ignite, t);
+			}
+			else
+			{
+				Building building = t as Building;
+				if (building != null && building.def.building.isInert && !allowPunchingInert)
+				{
+					return null;
+				}
+				job3 = JobMaker.MakeJob(JobDefOf.AttackMelee, t);
+			}
+			job3.killIncappedTarget = killIncappedTarget;
+			TrashUtility.FinalizeTrashJob(job3);
+			return job3;
+		}
+
+		// Token: 0x0600535E RID: 21342 RVA: 0x001F0B68 File Offset: 0x001EED68
+		private static void FinalizeTrashJob(Job job)
+		{
+			job.expiryInterval = TrashUtility.TrashJobCheckOverrideInterval.RandomInRange;
+			job.checkOverrideOnExpire = true;
+			job.expireRequiresEnemiesNearby = true;
+			job.ensureReachable = true;
+		}
+
+		// Token: 0x04003217 RID: 12823
+		private const float ChanceHateInertBuilding = 0.008f;
+
+		// Token: 0x04003218 RID: 12824
+		private static readonly IntRange TrashJobCheckOverrideInterval = new IntRange(450, 500);
+	}
+}

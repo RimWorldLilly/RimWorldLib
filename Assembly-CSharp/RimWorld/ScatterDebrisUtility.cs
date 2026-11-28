@@ -1,0 +1,104 @@
+﻿using System;
+using Verse;
+
+namespace RimWorld
+{
+	// Token: 0x020012C0 RID: 4800
+	public static class ScatterDebrisUtility
+	{
+		// Token: 0x0600771E RID: 30494 RVA: 0x002A0160 File Offset: 0x0029E360
+		public static bool CanPlaceThingAt(IntVec3 c, Rot4 rot, Map map, ThingDef thingDef)
+		{
+			if (!c.InBounds(map))
+			{
+				return false;
+			}
+			if (!GenConstruct.CanBuildOnTerrain(thingDef, c, map, rot, null, null))
+			{
+				return false;
+			}
+			foreach (IntVec3 c2 in GenAdj.OccupiedRect(c, rot, thingDef.size))
+			{
+				if (!c2.InBounds(map) || c2.Roofed(map) || c2.GetEdifice(map) != null || !map.reachability.CanReachMapEdge(c2, TraverseParms.For(TraverseMode.NoPassClosedDoors, Danger.Deadly, false, false, false, true, false)))
+				{
+					return false;
+				}
+				if (c2.GetThingList(map).Count > 0)
+				{
+					return false;
+				}
+			}
+			return true;
+		}
+
+		// Token: 0x0600771F RID: 30495 RVA: 0x002A0220 File Offset: 0x0029E420
+		public static void ScatterFilthAroundThing(Thing thing, Map map, ThingDef filth, float scatterChance = 0.5f, int expandBy = 1, int maxFilth = 2147483647, Func<IntVec3, bool> cellValidator = null)
+		{
+			int num = 0;
+			foreach (IntVec3 intVec in thing.OccupiedRect().ExpandedBy(expandBy).InRandomOrder(null))
+			{
+				if (intVec.InBounds(map) && Rand.Chance(scatterChance) && (cellValidator == null || cellValidator(intVec)) && FilthMaker.TryMakeFilth(intVec, map, filth, 1, FilthSourceFlags.None, true))
+				{
+					num++;
+				}
+				if (num >= maxFilth)
+				{
+					break;
+				}
+			}
+		}
+
+		// Token: 0x06007720 RID: 30496 RVA: 0x002A02B4 File Offset: 0x0029E4B4
+		public static void ScatterFilthAroundCell(IntVec3 pos, IntVec2 area, Map map, ThingDef filth, float scatterChance = 0.5f, int maxFilth = 2147483647, Func<IntVec3, bool> cellValidator = null)
+		{
+			int num = 0;
+			foreach (IntVec3 intVec in pos.RectAbout(area).InRandomOrder(null))
+			{
+				if (intVec.InBounds(map) && Rand.Chance(scatterChance) && (cellValidator == null || cellValidator(intVec)) && FilthMaker.TryMakeFilth(intVec, map, filth, 1, FilthSourceFlags.None, true))
+				{
+					num++;
+				}
+				if (num >= maxFilth)
+				{
+					break;
+				}
+			}
+		}
+
+		// Token: 0x06007721 RID: 30497 RVA: 0x002A0340 File Offset: 0x0029E540
+		public static void ScatterFilthAroundThing(Thing thing, Map map, ThingDef filth, IntRange count, int expandBy = 1, Func<IntVec3, bool> cellValidator = null)
+		{
+			int num = 0;
+			int randomInRange = count.RandomInRange;
+			foreach (IntVec3 intVec in thing.OccupiedRect().ExpandedBy(expandBy).InRandomOrder(null))
+			{
+				if (intVec.InBounds(map) && (cellValidator == null || cellValidator(intVec)) && FilthMaker.TryMakeFilth(intVec, map, filth, 1, FilthSourceFlags.None, true))
+				{
+					num++;
+				}
+				if (num >= randomInRange)
+				{
+					break;
+				}
+			}
+		}
+
+		// Token: 0x06007722 RID: 30498 RVA: 0x002A03D8 File Offset: 0x0029E5D8
+		public static void ScatterAround(IntVec3 center, IntVec2 size, Rot4 rot, Sketch sketch, ThingDef scatterThing, float scatterChance = 0.5f, int expandBy = 1, int maxFilth = 2147483647, Func<IntVec3, bool> cellValidator = null)
+		{
+			int num = 0;
+			foreach (IntVec3 intVec in GenAdj.OccupiedRect(center, rot, size).ExpandedBy(expandBy).InRandomOrder(null))
+			{
+				if (Rand.Chance(scatterChance) && (cellValidator == null || cellValidator(intVec)))
+				{
+					sketch.AddThing(scatterThing, intVec, Rot4.North, null, 1, null, null, true, 2f);
+					num++;
+				}
+				if (num >= maxFilth)
+				{
+					break;
+				}
+			}
+		}
+	}
+}

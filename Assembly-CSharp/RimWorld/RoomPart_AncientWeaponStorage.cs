@@ -1,0 +1,59 @@
+﻿using System;
+using System.Collections.Generic;
+using Verse;
+
+namespace RimWorld
+{
+	// Token: 0x02001268 RID: 4712
+	public class RoomPart_AncientWeaponStorage : RoomPartWorker
+	{
+		// Token: 0x060074CF RID: 29903 RVA: 0x0029014B File Offset: 0x0028E34B
+		public RoomPart_AncientWeaponStorage(RoomPartDef def) : base(def)
+		{
+		}
+
+		// Token: 0x060074D0 RID: 29904 RVA: 0x00290154 File Offset: 0x0028E354
+		public override void FillRoom(Map map, LayoutRoom room, Faction faction, float threatPoints)
+		{
+			RoomGenUtility.GenerateRows(ThingDefOf.Shelf, room, map, ThingDefOf.Steel);
+			int num = RoomPart_AncientWeaponStorage.WeaponCountRange.RandomInRange;
+			int num2 = 999;
+			while (num > 0 && num2-- > 0)
+			{
+				Thing weapon;
+				if (EquipmentUtility.TryGenerateWeaponByTag(RoomPart_AncientWeaponStorage.WeaponTags.RandomElement<string>(), out weapon, 99999f) && !weapon.HasThingCategory(ThingCategoryDefOf.WeaponsUnique))
+				{
+					CompQuality compQuality;
+					if (weapon.TryGetComp(out compQuality))
+					{
+						compQuality.SetQuality(QualityUtility.GenerateQuality(QualityGenerator.BaseGen), new ArtGenerationContext?(ArtGenerationContext.Outsider));
+					}
+					IntVec3 loc;
+					if (room.TryGetRandomCellInRoom(map, out loc, 0, 0, (IntVec3 c) => this.ShelfValidator(map, c, weapon.def), true))
+					{
+						GenSpawn.Spawn(weapon, loc, map, WipeMode.Vanish).SetForbidden(true, true);
+						num--;
+					}
+				}
+			}
+		}
+
+		// Token: 0x060074D1 RID: 29905 RVA: 0x00290264 File Offset: 0x0028E464
+		private bool ShelfValidator(Map map, IntVec3 c, ThingDef itemDef)
+		{
+			Building_Storage building_Storage = c.GetFirstThing(map, ThingDefOf.Shelf) as Building_Storage;
+			return building_Storage != null && building_Storage.SpaceRemainingFor(itemDef) != 0;
+		}
+
+		// Token: 0x04004951 RID: 18769
+		private static readonly List<string> WeaponTags = new List<string>
+		{
+			"IndustrialGunAdvanced",
+			"SimpleGun",
+			"RangedHeavy"
+		};
+
+		// Token: 0x04004952 RID: 18770
+		private static readonly IntRange WeaponCountRange = new IntRange(6, 12);
+	}
+}

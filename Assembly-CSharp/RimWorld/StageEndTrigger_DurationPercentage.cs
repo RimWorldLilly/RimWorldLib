@@ -1,0 +1,38 @@
+﻿using System;
+using System.Collections.Generic;
+using UnityEngine;
+using Verse;
+using Verse.AI.Group;
+
+namespace RimWorld
+{
+	// Token: 0x02001661 RID: 5729
+	public class StageEndTrigger_DurationPercentage : StageEndTrigger
+	{
+		// Token: 0x170018F1 RID: 6385
+		// (get) Token: 0x06008FFF RID: 36863 RVA: 0x0034EAF0 File Offset: 0x0034CCF0
+		public override bool CountsTowardsProgress
+		{
+			get
+			{
+				return true;
+			}
+		}
+
+		// Token: 0x06009000 RID: 36864 RVA: 0x0034EAF3 File Offset: 0x0034CCF3
+		public override Trigger MakeTrigger(LordJob_Ritual ritual, TargetInfo spot, IEnumerable<TargetInfo> foci, RitualStage stage)
+		{
+			return new Trigger_TicksPassedRitual(Mathf.RoundToInt((float)ritual.DurationTicks * this.percentage), stage);
+		}
+
+		// Token: 0x06009001 RID: 36865 RVA: 0x0034EB0F File Offset: 0x0034CD0F
+		public override void ExposeData()
+		{
+			base.ExposeData();
+			Scribe_Values.Look<float>(ref this.percentage, "percentage", 0f, false);
+		}
+
+		// Token: 0x040057ED RID: 22509
+		public float percentage;
+	}
+}

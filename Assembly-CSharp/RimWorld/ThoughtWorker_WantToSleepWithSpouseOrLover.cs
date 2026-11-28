@@ -1,0 +1,43 @@
+﻿using System;
+using System.Collections.Generic;
+using RimWorld.Planet;
+using Verse;
+
+namespace RimWorld
+{
+	// Token: 0x02000DFF RID: 3583
+	public class ThoughtWorker_WantToSleepWithSpouseOrLover : ThoughtWorker
+	{
+		// Token: 0x060060E9 RID: 24809 RVA: 0x00230E88 File Offset: 0x0022F088
+		protected override ThoughtState CurrentStateInternal(Pawn p)
+		{
+			List<DirectPawnRelation> list = LovePartnerRelationUtility.ExistingLovePartners(p, false);
+			bool isSlaveOfColony = p.IsSlaveOfColony;
+			if (list.NullOrEmpty<DirectPawnRelation>())
+			{
+				return false;
+			}
+			int num = 0;
+			for (int i = 0; i < list.Count; i++)
+			{
+				if (list[i].otherPawn.IsColonist && !list[i].otherPawn.IsWorldPawn() && list[i].otherPawn.relations.everSeenByPlayer && isSlaveOfColony == list[i].otherPawn.IsSlaveOfColony)
+				{
+					if (p.ownership.OwnedBed != null && p.ownership.OwnedBed == list[i].otherPawn.ownership.OwnedBed)
+					{
+						return false;
+					}
+					if (p.ownership.OwnedRoom != null && p.ownership.OwnedRoom == list[i].otherPawn.ownership.OwnedRoom)
+					{
+						return false;
+					}
+					HistoryEventDef def = (list[i].def == PawnRelationDefOf.Spouse) ? HistoryEventDefOf.SharedBed_Spouse : HistoryEventDefOf.SharedBed_NonSpouse;
+					if (new HistoryEvent(def, p.Named(HistoryEventArgsNames.Doer)).DoerWillingToDo())
+					{
+						num++;
+					}
+				}
+			}
+			return num > 0;
+		}
+	}
+}

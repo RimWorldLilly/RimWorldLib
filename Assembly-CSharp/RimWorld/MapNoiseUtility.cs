@@ -1,0 +1,68 @@
+﻿using System;
+using UnityEngine;
+using Verse;
+using Verse.Noise;
+
+namespace RimWorld
+{
+	// Token: 0x02001305 RID: 4869
+	public static class MapNoiseUtility
+	{
+		// Token: 0x060078E8 RID: 30952 RVA: 0x002AE914 File Offset: 0x002ACB14
+		public static ModuleBase FalloffAtEdge(float width, Rot4 side, Map map)
+		{
+			ModuleBase moduleBase = new DistFromAxis(width);
+			if (side == Rot4.North)
+			{
+				moduleBase = new Rotate(0.0, 90.0, 0.0, moduleBase);
+				moduleBase = new Translate(0.0, 0.0, (double)(-(double)map.Size.z), moduleBase);
+			}
+			if (side == Rot4.East)
+			{
+				moduleBase = new Translate((double)(-(double)map.Size.x), 0.0, 0.0, moduleBase);
+			}
+			if (side == Rot4.South)
+			{
+				moduleBase = new Rotate(0.0, 90.0, 0.0, moduleBase);
+			}
+			return moduleBase;
+		}
+
+		// Token: 0x060078E9 RID: 30953 RVA: 0x002AE9E0 File Offset: 0x002ACBE0
+		public static ModuleBase FalloffAtAngle(float angle, float offsetPct, Map map)
+		{
+			ModuleBase input = new DistFromAxis_Directional((float)map.Size.x / 2f);
+			input = new ScaleBias(0.5, 0.5, input);
+			input = new Translate((double)((float)map.Size.x * (0.5f - offsetPct)), 0.0, 0.0, input);
+			input = new Rotate(0.0, (double)angle, 0.0, input);
+			return new Translate((double)((float)(-(float)map.Size.x) / 2f), 0.0, (double)((float)(-(float)map.Size.z) / 2f), input);
+		}
+
+		// Token: 0x060078EA RID: 30954 RVA: 0x002AEAA0 File Offset: 0x002ACCA0
+		public static ModuleBase CreateFalloffRadius(float radius, Vector2 offset, float exponent = 1f, bool invert = true)
+		{
+			ModuleBase moduleBase = new DistFromPoint(radius);
+			if (invert)
+			{
+				moduleBase = new ScaleBias(-1.0, 1.0, moduleBase);
+			}
+			moduleBase = new Clamp(0.0, 1.0, moduleBase);
+			moduleBase = new Power(moduleBase, new Const((double)exponent));
+			return new Translate((double)(-(double)offset.x), 0.0, (double)(-(double)offset.y), moduleBase);
+		}
+
+		// Token: 0x060078EB RID: 30955 RVA: 0x002AEB18 File Offset: 0x002ACD18
+		public static ModuleBase AddDisplacementNoise(ModuleBase baseShape, float frequency, float strength, int octaves = 4, int seed = -1)
+		{
+			if (seed < 0)
+			{
+				seed = Rand.Int;
+			}
+			ModuleBase moduleBase = new Perlin((double)frequency, 2.0, 0.5, octaves, seed, QualityMode.Medium);
+			ModuleBase moduleBase2 = new Perlin((double)frequency, 2.0, 0.5, octaves, seed + 1, QualityMode.Medium);
+			moduleBase = new Multiply(moduleBase, new Const((double)strength));
+			moduleBase2 = new Multiply(moduleBase2, new Const((double)strength));
+			return new Displace(baseShape, moduleBase, new Const(0.0), moduleBase2);
+		}
+	}
+}

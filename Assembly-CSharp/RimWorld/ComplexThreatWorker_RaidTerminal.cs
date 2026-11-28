@@ -1,0 +1,67 @@
+﻿using System;
+using System.Collections.Generic;
+using UnityEngine;
+using Verse;
+
+namespace RimWorld
+{
+	// Token: 0x02001215 RID: 4629
+	public class ComplexThreatWorker_RaidTerminal : ComplexThreatWorker
+	{
+		// Token: 0x060072E6 RID: 29414 RVA: 0x00282AB0 File Offset: 0x00280CB0
+		protected override bool CanResolveInt(ComplexResolveParams parms)
+		{
+			Faction faction;
+			IntVec3 intVec;
+			return base.CanResolveInt(parms) && this.TryFindRandomEnemyFaction(parms, out faction) && ComplexUtility.TryFindRandomSpawnCell(ThingDefOf.AncientEnemyTerminal, parms.room, parms.map, out intVec, 1, null);
+		}
+
+		// Token: 0x060072E7 RID: 29415 RVA: 0x00282AF8 File Offset: 0x00280CF8
+		protected override void ResolveInt(ComplexResolveParams parms, ref float threatPointsUsed, List<Thing> outSpawnedThings)
+		{
+			IntVec3 loc;
+			ComplexUtility.TryFindRandomSpawnCell(ThingDefOf.AncientEnemyTerminal, parms.room, parms.map, out loc, 1, null);
+			Thing thing = GenSpawn.Spawn(ThingDefOf.AncientEnemyTerminal, loc, parms.map, WipeMode.Vanish);
+			Faction faction;
+			this.TryFindRandomEnemyFaction(parms, out faction);
+			float num = Mathf.Max(parms.points, faction.def.MinPointsToGeneratePawnGroup(PawnGroupKindDefOf.Combat, null) * 1.05f);
+			IncidentParms incidentParms = new IncidentParms
+			{
+				forced = true,
+				target = parms.map,
+				points = num,
+				faction = faction,
+				raidArrivalMode = PawnsArrivalModeDefOf.EdgeWalkIn,
+				raidStrategy = RaidStrategyDefOf.ImmediateAttack
+			};
+			CompHackable compHackable = thing.TryGetComp<CompHackable>();
+			string text = compHackable.hackingCompletedSignal;
+			if (text.NullOrEmpty())
+			{
+				text = "RaidSignal" + Find.UniqueIDsManager.GetNextSignalTagID().ToString();
+				compHackable.hackingCompletedSignal = text;
+			}
+			SignalAction_Incident signalAction_Incident = (SignalAction_Incident)ThingMaker.MakeThing(ThingDefOf.SignalAction_Incident, null);
+			signalAction_Incident.incident = IncidentDefOf.RaidEnemy;
+			signalAction_Incident.incidentParms = incidentParms;
+			signalAction_Incident.signalTag = text;
+			GenSpawn.Spawn(signalAction_Incident, parms.room.rects[0].CenterCell, parms.map, WipeMode.Vanish);
+			threatPointsUsed += num;
+		}
+
+		// Token: 0x060072E8 RID: 29416 RVA: 0x00282C3D File Offset: 0x00280E3D
+		private bool TryFindRandomEnemyFaction(ComplexResolveParams parms, out Faction faction)
+		{
+			if (parms.hostileFaction != null && parms.hostileFaction.def.humanlikeFaction)
+			{
+				faction = parms.hostileFaction;
+				return true;
+			}
+			faction = Find.FactionManager.RandomRaidableEnemyFaction(false, false, false, TechLevel.Undefined);
+			return faction != null;
+		}
+
+		// Token: 0x040048B5 RID: 18613
+		private const string SignalPrefix = "RaidSignal";
+	}
+}
